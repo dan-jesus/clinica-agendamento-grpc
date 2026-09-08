@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package agenda;
+
+option java_multiple_files = true;
+option java_package = "clinica.grpc";
+
+service AgendaService {
+  rpc ConsultarDisponibilidade(ConsultarDisponibilidadeRequest) returns (ConsultarDisponibilidadeResponse);
+  rpc AgendarConsulta(AgendarConsultaRequest) returns (AgendarConsultaResponse);
+}
+
+enum Procedimento {
+  PROCEDIMENTO_NAO_INFORMADO = 0;
+  LIMPEZA = 1;
+  RESTAURACAO = 2;
+  CANAL = 3;
+  EXTRACAO = 4;
+  CLAREAMENTO = 5;
+}
+
+message ConsultarDisponibilidadeRequest {
+  string data = 1;
+}
+
+message ConsultarDisponibilidadeResponse {
+  string data = 1;
+  repeated string horarios_livres = 2;
+}
+
+message AgendarConsultaRequest {
+  string paciente = 1;
+  Procedimento procedimento = 2;
+  string data = 3;
+  string horario = 4;
+}
+
+message AgendarConsultaResponse {
+  bool confirmado = 1;
+  string protocolo = 2;
+  string mensagem = 3;
+  repeated string horarios_alternativos = 4;
+}

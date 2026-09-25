@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: agenda-service
+  datasource:
+    url: ${AGENDA_DB_URL:jdbc:postgresql://localhost:5432/clinica_agenda}
+    username: ${AGENDA_DB_USER:postgres}
+    password: ${AGENDA_DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: ${AGENDA_DB_POOL_SIZE:5}
+      minimum-idle: 1
+      connection-timeout: 10000
+      pool-name: agenda-db-pool
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  main:
+    banner-mode: off
+    web-application-type: none

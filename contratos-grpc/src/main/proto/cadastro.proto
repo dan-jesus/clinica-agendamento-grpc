@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package cadastro;
+
+option java_multiple_files = true;
+option java_package = "clinica.grpc";
+
+service CadastroService {
+  rpc Autenticar(AutenticarRequest) returns (AutenticarResponse);
+  rpc CadastrarPaciente(CadastrarPacienteRequest) returns (PacienteResponse);
+  rpc AtualizarPaciente(AtualizarPacienteRequest) returns (PacienteResponse);
+  rpc BuscarPaciente(BuscarPacienteRequest) returns (PacienteResponse);
+  rpc ListarPacientes(ListarPacientesRequest) returns (ListarPacientesResponse);
+}
+
+message AutenticarRequest {
+  string email = 1;
+  string senha = 2;
+}
+
+message AutenticarResponse {
+  bool autenticado = 1;
+  int64 usuario_id = 2;
+  string nome = 3;
+  string email = 4;
+  string mensagem = 5;
+}
+
+message CadastrarPacienteRequest {
+  string nome = 1;
+  string cpf = 2;
+  string telefone = 3;
+  string email = 4;
+}
+
+message AtualizarPacienteRequest {
+  int64 id = 1;
+  string nome = 2;
+  string cpf = 3;
+  string telefone = 4;
+  string email = 5;
+}
+
+message BuscarPacienteRequest {
+  int64 id = 1;
+}
+
+message ListarPacientesRequest {}
+
+message Paciente {
+  int64 id = 1;
+  string nome = 2;
+  string cpf = 3;
+  string telefone = 4;
+  string email = 5;
+  string criado_em = 6;
+}
+
+message PacienteResponse {
+  bool sucesso = 1;
+  string mensagem = 2;
+  Paciente paciente = 3;
+}
+
+message ListarPacientesResponse {
+  repeated Paciente pacientes = 1;
+}

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clínica Odontológica — Agenda</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">Sistemas Distribuídos</span>
+        <h1>Clínica Odontológica</h1>
+        <p>Agendamento distribuído com REST, JWT, gRPC e PostgreSQL.</p>
+      </div>
+      <div id="sessionBox" class="session hidden">
+        <span id="userName"></span>
+        <button id="logoutBtn" class="button ghost">Sair</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="loginView" class="card login-card">
+        <div>
+          <span class="badge">API Gateway</span>
+          <h2>Entrar na recepção</h2>
+          <p class="muted">O login é validado no cadastro-service. O Gateway emite o JWT usado nas demais requisições.</p>
+        </div>
+        <form id="loginForm" class="form-grid one-column">
+          <label>E-mail
+            <input id="loginEmail" type="email" value="admin@clinica.com" required />
+          </label>
+          <label>Senha
+            <input id="loginPassword" type="password" value="admin123" required />
+          </label>
+          <button class="button primary" type="submit">Entrar</button>
+        </form>
+        <div id="loginStatus" class="status hidden"></div>
+      </section>
+
+      <div id="appView" class="hidden">
+        <section class="metrics">
+          <article class="metric"><span>Entrada</span><strong>HTTP/JSON</strong><small>Frontend → Gateway</small></article>
+          <article class="metric"><span>Segurança</span><strong>JWT</strong><small>Bearer token na borda</small></article>
+          <article class="metric"><span>Interno</span><strong>gRPC</strong><small>Gateway → microsserviços</small></article>
+          <article class="metric"><span>Persistência</span><strong>PostgreSQL</strong><small>Sem mocks em memória</small></article>
+        </section>
+
+        <section class="grid two-columns">
+          <article class="card">
+            <div class="card-title">
+              <div><span class="badge">cadastro-service</span><h2>Novo paciente</h2></div>
+              <span class="grpc-tag">gRPC :9091</span>
+            </div>
+            <form id="patientForm" class="form-grid">
+              <label class="span-2">Nome
+                <input id="patientName" maxlength="150" placeholder="Nome completo" required />
+              </label>
+              <label>CPF
+                <input id="patientCpf" inputmode="numeric" maxlength="11" placeholder="Somente 11 dígitos" required />
+              </label>
+              <label>Telefone
+                <input id="patientPhone" maxlength="30" placeholder="(62) 99999-9999" />
+              </label>
+              <label class="span-2">E-mail
+                <input id="patientEmail" type="email" maxlength="180" placeholder="paciente@email.com" />
+              </label>
+              <button class="button primary span-2" type="submit">Cadastrar paciente</button>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="card-title">
+              <div><span class="badge">agenda-service</span><h2>Agendar consulta</h2></div>
+              <span class="grpc-tag">gRPC :9090</span>
+            </div>
+            <form id="appointmentForm" class="form-grid">
+              <label class="span-2">Paciente
+                <select id="appointmentPatient" required><option value="">Selecione...</option></select>
+              </label>
+              <label>Procedimento
+                <select id="appointmentProcedure" required>
+                  <option value="LIMPEZA">Limpeza</option>
+                  <option value="RESTAURACAO">Restauração</option>
+                  <option value="CANAL">Canal</option>
+                  <option value="EXTRACAO">Extração</option>
+                  <option value="CLAREAMENTO">Clareamento</option>
+                </select>
+              </label>
+              <label>Data
+                <input id="appointmentDate" type="date" required />
+              </label>
+              <div class="span-2 availability-box">
+                <div class="availability-head">
+                  <span>Horários disponíveis</span>
+                  <button id="availabilityBtn" class="button secondary compact" type="button">Consultar</button>
+                </div>
+                <div id="timeSlots" class="time-slots"><span class="muted">Escolha uma data e consulte.</span></div>
+                <input id="appointmentTime" type="hidden" />
+              </div>
+              <button class="button primary span-2" type="submit">Confirmar agendamento</button>
+            </form>
+          </article>
+        </section>
+
+        <section class="card table-card">
+          <div class="card-title">
+            <div><span class="badge">PostgreSQL</span><h2>Consultas persistidas</h2></div>
+            <button id="refreshAppointmentsBtn" class="button secondary compact">Atualizar</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Protocolo</th><th>Paciente</th><th>Procedimento</th><th>Data</th><th>Horário</th></tr></thead>
+              <tbody id="appointmentsBody"><tr><td colspan="5" class="muted">Nenhuma consulta carregada.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card demo-card">
+          <div>
+            <span class="badge warning">Demonstração</span>
+            <h2>Teste rápido de segurança</h2>
+            <p class="muted">Faz uma chamada protegida deliberadamente sem JWT para comprovar o retorno <strong>401 Unauthorized</strong>.</p>
+          </div>
+          <button id="test401Btn" class="button danger">Testar 401</button>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>

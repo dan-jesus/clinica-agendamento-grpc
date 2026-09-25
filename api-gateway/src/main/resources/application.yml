@@ -1,0 +1,16 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: clinica-api-gateway
+
+app:
+  grpc:
+    agenda-host: ${AGENDA_GRPC_HOST:localhost}
+    agenda-port: ${AGENDA_GRPC_PORT:9090}
+    cadastro-host: ${CADASTRO_GRPC_HOST:localhost}
+    cadastro-port: ${CADASTRO_GRPC_PORT:9091}
+  jwt:
+    secret: ${JWT_SECRET:dev-secret-clinica-odontologica-troque-em-producao-1234567890}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:120}

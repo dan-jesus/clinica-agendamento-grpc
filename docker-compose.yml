@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: clinica-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - clinica_postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  cadastro-service:
+    build:
+      context: .
+      dockerfile: cadastro-service/Dockerfile
+    container_name: clinica-cadastro-service
+    environment:
+      CADASTRO_GRPC_PORT: 9091
+      CADASTRO_DB_URL: ${CADASTRO_DB_URL:-jdbc:postgresql://postgres:5432/clinica_cadastro}
+      CADASTRO_DB_USER: ${CADASTRO_DB_USER:-postgres}
+      CADASTRO_DB_PASSWORD: ${CADASTRO_DB_PASSWORD:?defina CADASTRO_DB_PASSWORD no arquivo .env}
+      APP_ADMIN_NAME: ${APP_ADMIN_NAME:-Recepção Clínica}
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-admin@clinica.com}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-admin123}
+    ports:
+      - "9091:9091"
+    restart: unless-stopped
+
+  agenda-service:
+    build:
+      context: .
+      dockerfile: agenda-service/Dockerfile
+    container_name: clinica-agenda-service
+    environment:
+      AGENDA_GRPC_PORT: 9090
+      AGENDA_DB_URL: ${AGENDA_DB_URL:-jdbc:postgresql://postgres:5432/clinica_agenda}
+      AGENDA_DB_USER: ${AGENDA_DB_USER:-postgres}
+      AGENDA_DB_PASSWORD: ${AGENDA_DB_PASSWORD:?defina AGENDA_DB_PASSWORD no arquivo .env}
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: clinica-api-gateway
+    environment:
+      SERVER_PORT: 8080
+      CADASTRO_GRPC_HOST: cadastro-service
+      CADASTRO_GRPC_PORT: 9091
+      AGENDA_GRPC_HOST: agenda-service
+      AGENDA_GRPC_PORT: 9090
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-clinica-odontologica-troque-em-producao-1234567890}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-120}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - cadastro-service
+      - agenda-service
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: clinica-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+volumes:
+  clinica_postgres_data:

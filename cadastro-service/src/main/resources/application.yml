@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: cadastro-service
+  datasource:
+    url: ${CADASTRO_DB_URL:jdbc:postgresql://localhost:5432/clinica_cadastro}
+    username: ${CADASTRO_DB_USER:postgres}
+    password: ${CADASTRO_DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: ${CADASTRO_DB_POOL_SIZE:5}
+      minimum-idle: 1
+      connection-timeout: 10000
+      pool-name: cadastro-db-pool
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  main:
+    banner-mode: off
+    web-application-type: none

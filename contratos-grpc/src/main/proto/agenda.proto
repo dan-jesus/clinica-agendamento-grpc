@@ -8,7 +8,6 @@ option java_package = "clinica.grpc";
 service AgendaService {
   rpc ConsultarDisponibilidade(ConsultarDisponibilidadeRequest) returns (ConsultarDisponibilidadeResponse);
   rpc AgendarConsulta(AgendarConsultaRequest) returns (AgendarConsultaResponse);
-  rpc ListarConsultas(ListarConsultasRequest) returns (ListarConsultasResponse);
 }
 
 enum Procedimento {
@@ -30,13 +29,10 @@ message ConsultarDisponibilidadeResponse {
 }
 
 message AgendarConsultaRequest {
-  // Campo mantido por compatibilidade com o Trabalho 1.
   string paciente = 1;
   Procedimento procedimento = 2;
   string data = 3;
   string horario = 4;
-  // No Trabalho 2 o Gateway resolve o paciente no cadastro-service e envia o ID.
-  int64 paciente_id = 5;
 }
 
 message AgendarConsultaResponse {
@@ -44,25 +40,4 @@ message AgendarConsultaResponse {
   string protocolo = 2;
   string mensagem = 3;
   repeated string horarios_alternativos = 4;
-  int64 consulta_id = 5;
-}
-
-message ListarConsultasRequest {
-  // Opcional. Vazio lista todas; preenchido usa dd/MM/aaaa.
-  string data = 1;
-}
-
-message Consulta {
-  int64 id = 1;
-  string protocolo = 2;
-  int64 paciente_id = 3;
-  string paciente = 4;
-  Procedimento procedimento = 5;
-  string data = 6;
-  string horario = 7;
-  string criado_em = 8;
-}
-
-message ListarConsultasResponse {
-  repeated Consulta consultas = 1;
 }

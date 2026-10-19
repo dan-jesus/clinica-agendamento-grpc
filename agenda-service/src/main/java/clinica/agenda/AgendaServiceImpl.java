@@ -1,141 +1,97 @@
 package clinica.agenda;
 
-import clinica.agenda.AgendamentoValidator.AgendamentoValidado;
 import clinica.grpc.AgendaServiceGrpc;
 import clinica.grpc.AgendarConsultaRequest;
 import clinica.grpc.AgendarConsultaResponse;
-import clinica.grpc.Consulta;
 import clinica.grpc.ConsultarDisponibilidadeRequest;
 import clinica.grpc.ConsultarDisponibilidadeResponse;
-import clinica.grpc.ListarConsultasRequest;
-import clinica.grpc.ListarConsultasResponse;
-import io.grpc.Status;
+import clinica.grpc.Procedimento;
 import io.grpc.stub.StreamObserver;
-import org.springframework.dao.DataAccessException;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashSet;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AgendaServiceImpl extends AgendaServiceGrpc.AgendaServiceImplBase {
 
-    private static final DateTimeFormatter FORMATO_DATA_HORA_ISO = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    private static final List<String> HORARIOS_ATENDIMENTO =
+            List.of("09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00");
 
-    private final AgendaRepository repository;
+    private static final DateTimeFormatter FORMATO_DATA =
+            DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
 
-    public AgendaServiceImpl(AgendaRepository repository) {
-        this.repository = repository;
-    }
+    // Agenda mantida em memória: data -> horários já reservados.
+    private final Map<String, Set<String>> reservas = new ConcurrentHashMap<>();
 
     @Override
     public void consultarDisponibilidade(ConsultarDisponibilidadeRequest request,
                                          StreamObserver<ConsultarDisponibilidadeResponse> responseObserver) {
-        try {
-            Optional<LocalDate> data = AgendamentoValidator.parseData(request.getData());
-            List<String> livres = data.isPresent() ? horariosLivres(data.get()) : List.of();
-            responseObserver.onNext(ConsultarDisponibilidadeResponse.newBuilder()
-                    .setData(request.getData())
-                    .addAllHorariosLivres(livres)
-                    .build());
-            responseObserver.onCompleted();
-        } catch (DataAccessException ex) {
-            falhaBanco(responseObserver, ex);
-        }
+        String data = request.getData();
+        System.out.println("Disponibilidade consultada para " + data);
+
+        ConsultarDisponibilidadeResponse resposta = ConsultarDisponibilidadeResponse.newBuilder()
+                .setData(data)
+                .addAllHorariosLivres(dataValida(data) ? horariosLivres(data) : List.of())
+                .build();
+
+        responseObserver.onNext(resposta);
+        responseObserver.onCompleted();
     }
 
     @Override
     public void agendarConsulta(AgendarConsultaRequest request,
                                 StreamObserver<AgendarConsultaResponse> responseObserver) {
-        try {
-            responseObserver.onNext(avaliarEGravar(request));
-            responseObserver.onCompleted();
-        } catch (ConsultaInvalidaException ex) {
-            responseObserver.onNext(recusar(mensagemDeErros(ex), List.of()));
-            responseObserver.onCompleted();
-        } catch (DataAccessException ex) {
-            falhaBanco(responseObserver, ex);
-        }
-    }
-
-    @Override
-    public void listarConsultas(ListarConsultasRequest request,
-                                StreamObserver<ListarConsultasResponse> responseObserver) {
-        try {
-            Optional<LocalDate> filtro = request.getData().isBlank()
-                    ? Optional.empty()
-                    : AgendamentoValidator.parseData(request.getData());
-            if (!request.getData().isBlank() && filtro.isEmpty()) {
-                responseObserver.onError(Status.INVALID_ARGUMENT
-                        .withDescription("Data inválida. Use dd/MM/aaaa.")
-                        .asRuntimeException());
-                return;
-            }
-
-            ListarConsultasResponse.Builder resposta = ListarConsultasResponse.newBuilder();
-            for (ConsultaRegistro registro : repository.listar(filtro)) {
-                resposta.addConsultas(toProto(registro));
-            }
-            responseObserver.onNext(resposta.build());
-            responseObserver.onCompleted();
-        } catch (DataAccessException ex) {
-            falhaBanco(responseObserver, ex);
-        }
-    }
-
-    private AgendarConsultaResponse avaliarEGravar(AgendarConsultaRequest request) {
-        AgendamentoValidado validado = AgendamentoValidator.validar(
+        System.out.printf("Agendamento solicitado: paciente=%s, procedimento=%s, data=%s, horario=%s%n",
                 request.getPaciente(), request.getProcedimento(), request.getData(), request.getHorario());
 
-        List<LocalTime> horariosAtendimento = repository.horariosAtendimento();
-        if (!horariosAtendimento.contains(validado.horario())) {
-            return recusar("Horário fora do atendimento da clínica.", horariosComoTexto(horariosAtendimento));
+        AgendarConsultaResponse resposta = avaliar(request);
+        System.out.println(resposta.getConfirmado()
+                ? "Confirmado, protocolo " + resposta.getProtocolo()
+                : "Recusado: " + resposta.getMensagem());
+
+        responseObserver.onNext(resposta);
+        responseObserver.onCompleted();
+    }
+
+    private AgendarConsultaResponse avaliar(AgendarConsultaRequest request) {
+        if (request.getPaciente().isBlank()) {
+            return recusar("Nome do paciente não informado.", List.of());
+        }
+        if (request.getProcedimento() == Procedimento.PROCEDIMENTO_NAO_INFORMADO
+                || request.getProcedimento() == Procedimento.UNRECOGNIZED) {
+            return recusar("Procedimento não informado.", List.of());
+        }
+        if (!dataValida(request.getData())) {
+            return recusar("Data inválida. Use o formato dd/MM/aaaa.", List.of());
+        }
+        if (!HORARIOS_ATENDIMENTO.contains(request.getHorario())) {
+            return recusar("Horário fora do atendimento da clínica.", HORARIOS_ATENDIMENTO);
         }
 
-        String protocolo = "AGD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        Long pacienteId = request.getPacienteId() > 0 ? request.getPacienteId() : null;
+        // add devolve false quando o horário já estava reservado, garantindo
+        // que duas chamadas simultâneas não ocupem o mesmo horário.
+        boolean reservado = reservas
+                .computeIfAbsent(request.getData(), data -> ConcurrentHashMap.newKeySet())
+                .add(request.getHorario());
 
-        try {
-            ConsultaRegistro criada = repository.inserir(
-                    protocolo,
-                    pacienteId,
-                    request.getPaciente().trim(),
-                    request.getProcedimento(),
-                    validado.data(),
-                    validado.horario());
-
-            return AgendarConsultaResponse.newBuilder()
-                    .setConfirmado(true)
-                    .setConsultaId(criada.id())
-                    .setProtocolo(criada.protocolo())
-                    .setMensagem("Consulta confirmada e persistida no PostgreSQL.")
-                    .build();
-        } catch (HorarioIndisponivelException ex) {
-            return recusar("Horário já ocupado.", horariosLivres(validado.data()));
+        if (!reservado) {
+            return recusar("Horário já ocupado.", horariosLivres(request.getData()));
         }
+
+        return AgendarConsultaResponse.newBuilder()
+                .setConfirmado(true)
+                .setProtocolo("AGD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .setMensagem("Consulta confirmada.")
+                .build();
     }
 
-    private List<String> horariosLivres(LocalDate data) {
-        Set<LocalTime> ocupados = new HashSet<>(repository.horariosOcupados(data));
-        return repository.horariosAtendimento().stream()
-                .filter(horario -> !ocupados.contains(horario))
-                .map(AgendamentoValidator::formatarHorario)
-                .toList();
-    }
-
-    private static List<String> horariosComoTexto(List<LocalTime> horarios) {
-        return horarios.stream().map(AgendamentoValidator::formatarHorario).toList();
-    }
-
-    private static String mensagemDeErros(ConsultaInvalidaException ex) {
-        return String.join("; ", ex.getErros().values());
-    }
-
-    private static AgendarConsultaResponse recusar(String mensagem, List<String> alternativas) {
+    private AgendarConsultaResponse recusar(String mensagem, List<String> alternativas) {
         return AgendarConsultaResponse.newBuilder()
                 .setConfirmado(false)
                 .setMensagem(mensagem)
@@ -143,26 +99,17 @@ public class AgendaServiceImpl extends AgendaServiceGrpc.AgendaServiceImplBase {
                 .build();
     }
 
-    private static Consulta toProto(ConsultaRegistro registro) {
-        Consulta.Builder consulta = Consulta.newBuilder()
-                .setId(registro.id())
-                .setProtocolo(registro.protocolo())
-                .setPaciente(registro.pacienteNome())
-                .setProcedimento(registro.procedimento())
-                .setData(AgendamentoValidator.formatarData(registro.data()))
-                .setHorario(AgendamentoValidator.formatarHorario(registro.horario()))
-                .setCriadoEm(registro.criadoEm().format(FORMATO_DATA_HORA_ISO));
-        if (registro.pacienteId() != null) {
-            consulta.setPacienteId(registro.pacienteId());
-        }
-        return consulta.build();
+    private List<String> horariosLivres(String data) {
+        Set<String> ocupados = reservas.getOrDefault(data, Set.of());
+        return HORARIOS_ATENDIMENTO.stream().filter(horario -> !ocupados.contains(horario)).toList();
     }
 
-    private static void falhaBanco(StreamObserver<?> responseObserver, DataAccessException ex) {
-        ex.printStackTrace();
-        responseObserver.onError(Status.INTERNAL
-                .withDescription("Falha ao acessar o banco de dados da agenda.")
-                .withCause(ex)
-                .asRuntimeException());
+    private boolean dataValida(String data) {
+        try {
+            LocalDate.parse(data, FORMATO_DATA);
+            return true;
+        } catch (DateTimeParseException excecao) {
+            return false;
+        }
     }
 }

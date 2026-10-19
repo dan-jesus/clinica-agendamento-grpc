@@ -19,8 +19,3 @@ target/
 *.tmp
 *.swp
 *~
-
-### Ambiente local ###
-.env
-*.log
-.DS_Store

@@ -7,7 +7,7 @@
     <parent>
         <groupId>clinica.sd</groupId>
         <artifactId>clinica-agendamento</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>contratos-grpc</artifactId>
@@ -20,11 +20,6 @@
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-stub</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>javax.annotation</groupId>
-            <artifactId>javax.annotation-api</artifactId>
-            <version>1.3.2</version>
         </dependency>
     </dependencies>
 
@@ -52,7 +47,9 @@
                     <execution>
                         <id>adicionar-fontes-geradas</id>
                         <phase>generate-sources</phase>
-                        <goals><goal>add-source</goal></goals>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
                         <configuration>
                             <sources>
                                 <source>${project.build.directory}/generated-sources/protobuf/java</source>

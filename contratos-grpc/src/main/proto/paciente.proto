@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package clinica.paciente;
+
+option java_multiple_files = true;
+option java_package = "clinica.grpc.paciente";
+option java_outer_classname = "PacienteProto";
+
+// Cadastro de pacientes da clínica (tabela pacientes).
+service PacienteService {
+  // INVALID_ARGUMENT: campo obrigatório ausente ou inválido.
+  // ALREADY_EXISTS: CPF já cadastrado.
+  rpc CadastrarPaciente(CadastrarPacienteRequest) returns (Paciente);
+
+  // NOT_FOUND: paciente inexistente.
+  rpc BuscarPaciente(BuscarPacienteRequest) returns (Paciente);
+
+  rpc ListarPacientes(ListarPacientesRequest) returns (ListarPacientesResponse);
+}
+
+message CadastrarPacienteRequest {
+  string nome = 1;
+  string cpf = 2;       // somente dígitos (11)
+  string telefone = 3;
+  string email = 4;     // opcional
+}
+
+message BuscarPacienteRequest {
+  int64 id = 1;
+}
+
+message ListarPacientesRequest {
+}
+
+message Paciente {
+  int64 id = 1;
+  string nome = 2;
+  string cpf = 3;
+  string telefone = 4;
+  string email = 5;
+  string criado_em = 6; // ISO-8601
+}
+
+message ListarPacientesResponse {
+  repeated Paciente pacientes = 1;
+}

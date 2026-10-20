@@ -1,13 +1,22 @@
 syntax = "proto3";
 
-package agenda;
+package clinica.agenda;
 
 option java_multiple_files = true;
-option java_package = "clinica.grpc";
+option java_package = "clinica.grpc.agenda";
+option java_outer_classname = "AgendaProto";
 
+// Agenda da clínica (tabela consultas). Ao agendar, consulta o
+// PacienteService via gRPC para validar o paciente.
 service AgendaService {
+  // INVALID_ARGUMENT: data inválida ou no passado.
   rpc ConsultarDisponibilidade(ConsultarDisponibilidadeRequest) returns (ConsultarDisponibilidadeResponse);
-  rpc AgendarConsulta(AgendarConsultaRequest) returns (AgendarConsultaResponse);
+
+  // INVALID_ARGUMENT: dados inválidos. NOT_FOUND: paciente inexistente.
+  // ALREADY_EXISTS: horário já ocupado. UNAVAILABLE: serviço de pacientes fora do ar.
+  rpc AgendarConsulta(AgendarConsultaRequest) returns (Consulta);
+
+  rpc ListarConsultas(ListarConsultasRequest) returns (ListarConsultasResponse);
 }
 
 enum Procedimento {
@@ -20,24 +29,36 @@ enum Procedimento {
 }
 
 message ConsultarDisponibilidadeRequest {
-  string data = 1;
+  string data = 1; // yyyy-MM-dd
 }
 
 message ConsultarDisponibilidadeResponse {
   string data = 1;
-  repeated string horarios_livres = 2;
+  repeated string horarios_livres = 2; // HH:mm
 }
 
 message AgendarConsultaRequest {
-  string paciente = 1;
+  int64 paciente_id = 1;
   Procedimento procedimento = 2;
-  string data = 3;
-  string horario = 4;
+  string data = 3;    // yyyy-MM-dd
+  string horario = 4; // HH:mm
 }
 
-message AgendarConsultaResponse {
-  bool confirmado = 1;
+message Consulta {
+  int64 id = 1;
   string protocolo = 2;
-  string mensagem = 3;
-  repeated string horarios_alternativos = 4;
+  int64 paciente_id = 3;
+  string paciente_nome = 4;
+  Procedimento procedimento = 5;
+  string data = 6;
+  string horario = 7;
+  string criado_em = 8; // ISO-8601
+}
+
+message ListarConsultasRequest {
+  string data = 1; // yyyy-MM-dd; vazio = todas
+}
+
+message ListarConsultasResponse {
+  repeated Consulta consultas = 1;
 }

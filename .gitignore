@@ -19,3 +19,7 @@ target/
 *.tmp
 *.swp
 *~
+
+### Ambiente local (credenciais) ###
+.env
+*.log
